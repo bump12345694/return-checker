@@ -31,6 +31,74 @@
     });
   }
 
+  // ===== Product Picker =====
+  function filterProducts() {
+    const q = document.getElementById('product-search').value.toLowerCase();
+    const list = document.getElementById('product-list');
+    const filtered = q ? PRODUCTS.filter(p => p.toLowerCase().includes(q)) : PRODUCTS;
+    list.innerHTML = filtered.map(p => `
+      <div class="product-chip ${state.selectedProduct === p ? 'selected' : ''}"
+           data-val="${p}" onclick="selectProduct(this)">${p}</div>
+    `).join('');
+  }
+
+  function selectProduct(el) {
+    state.selectedProduct = el.dataset.val;
+    document.getElementById('product-search').value = el.dataset.val;
+    filterProducts();
+  }
+
+  function selectUnit(el) {
+    document.querySelectorAll('.unit-chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    state.selectedUnit = el.dataset.val;
+  }
+
+  function addItem() {
+    const name = state.selectedProduct || document.getElementById('product-search').value.trim();
+    const qty = parseInt(document.getElementById('item-qty').value) || 1;
+    const unit = state.selectedUnit;
+    if (!name) { showToast('กรุณาเลือกหรือพิมพ์ชื่อสินค้า', true); return; }
+    state.itemList.push({ name, qty, unit });
+    state.selectedProduct = null;
+    document.getElementById('product-search').value = '';
+    document.getElementById('item-qty').value = '1';
+    filterProducts();
+    renderItemList();
+  }
+
+  function removeItem(index) {
+    state.itemList.splice(index, 1);
+    renderItemList();
+  }
+
+  function renderItemList() {
+    const el = document.getElementById('item-list');
+    if (!state.itemList.length) {
+      el.innerHTML = '<div class="item-empty">ยังไม่มีรายการสินค้า</div>';
+      return;
+    }
+    el.innerHTML = state.itemList.map((item, i) => `
+      <div class="item-row">
+        <span>${item.name} ${item.qty} ${item.unit}</span>
+        <button onclick="removeItem(${i})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function showDuplicateWarning(tracking, existing) {
+    const modal = document.getElementById('dup-modal');
+    document.getElementById('dup-tracking').textContent = tracking;
+    document.getElementById('dup-time').textContent = existing.time;
+    document.getElementById('dup-platform').textContent = existing.platform;
+    document.getElementById('dup-items').textContent = existing.items;
+    modal.classList.add('show');
+  }
+
+  function closeDupModal() {
+    document.getElementById('dup-modal').classList.remove('show');
+  }
+
   function closeScanner() {
     document.getElementById('scanner-modal').classList.remove('show');
     if (scanner) {
@@ -39,6 +107,9 @@
     }
   }
 
+
+  // Init product list
+  filterProducts();
 </script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -135,6 +206,35 @@
   #scanner-container { width: 100%; max-width: 340px; border-radius: var(--radius); overflow: hidden; }
   .scanner-modal p { color: #A8A49D; font-size: 12px; margin-top: 12px; text-align: center; }
   .btn-scan-close { margin-top: 20px; padding: 12px 32px; background: var(--danger); color: #fff; border: none; border-radius: 100px; font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; }
+  .dup-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1200; align-items: flex-end; justify-content: center; padding: 0; }
+  .dup-modal.show { display: flex; }
+  .dup-box { background: var(--surface); border-radius: var(--radius) var(--radius) 0 0; padding: 24px 20px 32px; width: 100%; max-width: 480px; }
+  .dup-icon { font-size: 32px; margin-bottom: 8px; }
+  .dup-box h3 { font-size: 16px; font-weight: 700; color: var(--danger); margin-bottom: 4px; }
+  .dup-box p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+  .dup-info { background: var(--danger-light); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 20px; border-left: 3px solid var(--danger); }
+  .dup-info .dup-num { font-size: 14px; font-weight: 700; font-family: monospace; color: var(--danger); margin-bottom: 6px; }
+  .dup-info .dup-detail { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+  .btn-dup-ok { width: 100%; padding: 14px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer; }
+
+  /* Product picker */
+  .product-search { width: 100%; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 11px 12px; font-size: 15px; font-family: inherit; color: var(--text); background: var(--bg); outline: none; margin-bottom: 8px; -webkit-appearance: none; }
+  .product-search:focus { border-color: var(--accent); background: #fff; }
+  .product-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; max-height: 140px; overflow-y: auto; }
+  .product-chip { padding: 7px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: var(--bg); color: var(--text-muted); transition: all 0.12s; -webkit-tap-highlight-color: transparent; }
+  .product-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .qty-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .qty-row input[type="number"] { width: 72px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 11px 10px; font-size: 15px; font-family: inherit; text-align: center; background: var(--bg); outline: none; -webkit-appearance: none; }
+  .qty-row input[type="number"]:focus { border-color: var(--accent); background: #fff; }
+  .unit-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+  .unit-chip { padding: 7px 11px; border-radius: 100px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: var(--bg); color: var(--text-muted); -webkit-tap-highlight-color: transparent; }
+  .unit-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-add-item { width: 100%; padding: 11px; background: var(--accent-light); color: var(--accent); border: 1.5px solid var(--accent); border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; margin-bottom: 12px; }
+  .item-list { display: flex; flex-direction: column; gap: 6px; }
+  .item-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; }
+  .item-row span { font-size: 13px; font-weight: 600; color: var(--text); }
+  .item-row button { background: none; border: none; color: var(--danger); font-size: 16px; cursor: pointer; padding: 0 4px; }
+  .item-empty { font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0; }
 </style>
 </head>
 <body>
@@ -198,8 +298,22 @@
   <div class="card">
     <div class="card-title">สินค้าที่ได้รับจริง</div>
     <div class="field">
-      <label>รายการสินค้า</label>
-      <textarea id="items" placeholder="เช่น คอลลาเจน 2 ซอง, เวย์โปรตีน 1 กระปุก"></textarea>
+      <label>ค้นหาหรือพิมพ์ชื่อสินค้า</label>
+      <input type="text" class="product-search" id="product-search" placeholder="พิมพ์เพื่อกรองหรือเพิ่มสินค้าใหม่" oninput="filterProducts()" autocomplete="off">
+      <div class="product-list" id="product-list"></div>
+      <div class="qty-row">
+        <input type="number" id="item-qty" placeholder="จำนวน" min="1" value="1">
+        <div class="unit-chips" id="unit-chips">
+          <div class="unit-chip selected" data-val="ซอง" onclick="selectUnit(this)">ซอง</div>
+          <div class="unit-chip" data-val="กระปุก" onclick="selectUnit(this)">กระปุก</div>
+          <div class="unit-chip" data-val="ชิ้น" onclick="selectUnit(this)">ชิ้น</div>
+          <div class="unit-chip" data-val="กล่อง" onclick="selectUnit(this)">กล่อง</div>
+          <div class="unit-chip" data-val="แพ็ค" onclick="selectUnit(this)">แพ็ค</div>
+          <div class="unit-chip" data-val="ขวด" onclick="selectUnit(this)">ขวด</div>
+        </div>
+      </div>
+      <button class="btn-add-item" onclick="addItem()">+ เพิ่มรายการนี้</button>
+      <div class="item-list" id="item-list"><div class="item-empty">ยังไม่มีรายการสินค้า</div></div>
     </div>
     <div class="field">
       <label>สภาพของ</label>
@@ -244,6 +358,24 @@
 </div>
 
 
+<!-- Duplicate Warning Modal -->
+<div class="dup-modal" id="dup-modal">
+  <div class="dup-box">
+    <div class="dup-icon">⚠️</div>
+    <h3>เลขพัสดุซ้ำ ไม่บันทึก</h3>
+    <p>เลขพัสดุนี้ถูกบันทึกไปแล้วในวันนี้</p>
+    <div class="dup-info">
+      <div class="dup-num" id="dup-tracking"></div>
+      <div class="dup-detail">
+        บันทึกเมื่อ <span id="dup-time"></span> &nbsp;|&nbsp;
+        แพลตฟอร์ม <span id="dup-platform"></span><br>
+        สินค้า: <span id="dup-items"></span>
+      </div>
+    </div>
+    <button class="btn-dup-ok" onclick="closeDupModal()">รับทราบ</button>
+  </div>
+</div>
+
 <!-- Scanner Modal -->
 <div class="scanner-modal" id="scanner-modal">
   <h2 id="scanner-label">สแกนบาร์โค้ด / QR Code</h2>
@@ -261,7 +393,17 @@
 <script>
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxkL6hdprK7HoGrWRxgaRW3YyByuLMT9EnfcLlhu4hX9rsIt9sqUYvs3DsR_dDatb1r4g/exec';
 
-  const state = { platform: null, carrier: null, condition: null, photos: [] };
+  const PRODUCTS = [
+    'magnesium 7 in 1','Omega','A19','DOUBLE','H-Cap','H-Tea',
+    'Nuvita Coffee','Nuvita Tea','Nuvita chocolate','PM care','V24',
+    'Triple Cal','chela','cider S','fiber','gasty สูตรใหม่',
+    'herbiva s','nutra','opta','probiocare','v24 cap'
+  ];
+
+  const state = {
+    platform: null, carrier: null, condition: null, photos: [],
+    itemList: [], selectedProduct: null, selectedUnit: 'ซอง'
+  };
 
   function switchTab(tab, el) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -329,12 +471,19 @@
 
   async function saveRecord() {
     const tracking = document.getElementById('tracking').value.trim();
-    const items = document.getElementById('items').value.trim();
+    const items = state.itemList.map(i => i.name + ' ' + i.qty + ' ' + i.unit).join(', ');
     if (!tracking) { showToast('กรุณากรอกเลขพัสดุ', true); return; }
     if (!state.platform) { showToast('กรุณาเลือกแพลตฟอร์ม', true); return; }
     if (!state.carrier) { showToast('กรุณาเลือกขนส่ง', true); return; }
-    if (!items) { showToast('กรุณากรอกรายการสินค้า', true); return; }
+    if (state.itemList.length === 0) { showToast('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ', true); return; }
     if (!state.condition) { showToast('กรุณาเลือกสภาพของ', true); return; }
+
+    // เช็คเลขพัสดุซ้ำ
+    const existing = getRecords().find(r => r.tracking === tracking);
+    if (existing) {
+      showDuplicateWarning(tracking, existing);
+      return;
+    }
 
     const record = {
       id: Date.now(),
@@ -343,9 +492,11 @@
       platform: state.platform,
       carrier: state.carrier,
       items,
+      itemList: [...state.itemList],
       condition: state.condition,
       note: document.getElementById('note').value.trim(),
       photos: [...state.photos],
+      date: new Date().toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' }),
       time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
       synced: false
     };
@@ -390,7 +541,16 @@
     document.getElementById('items').value = '';
     document.getElementById('note').value = '';
     document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.unit-chip').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.unit-chip')[0].classList.add('selected');
+    document.getElementById('product-search').value = '';
+    document.getElementById('item-qty').value = '1';
     state.platform = null; state.carrier = null; state.condition = null; state.photos = [];
+    state.itemList = [];
+    state.selectedProduct = null;
+    state.selectedUnit = 'ซอง';
+    renderItemList();
+    filterProducts();
     renderPhotoPreview();
   }
 
@@ -422,7 +582,11 @@
           <span class="tag">${r.carrier}</span>
           <span class="tag cond-${condClass[r.condition]}">${r.condition}</span>
         </div>
-        <div class="record-items">${r.items}</div>
+        <div class="record-items">${
+          r.itemList && r.itemList.length
+            ? r.itemList.map(i => i.name + ' ' + i.qty + ' ' + i.unit).join('<br>')
+            : r.items
+        }</div>
         ${r.note ? `<div class="record-note">${r.note}</div>` : ''}
         ${r.photos && r.photos.length ? `<div class="thumb-row">${r.photos.map(src => `<img src="${src}" onclick="openLightbox('${src}')">`).join('')}</div>` : ''}
       </div>
@@ -469,6 +633,74 @@
       showToast('ไม่สามารถเปิดกล้องได้', true);
       closeScanner();
     });
+  }
+
+  // ===== Product Picker =====
+  function filterProducts() {
+    const q = document.getElementById('product-search').value.toLowerCase();
+    const list = document.getElementById('product-list');
+    const filtered = q ? PRODUCTS.filter(p => p.toLowerCase().includes(q)) : PRODUCTS;
+    list.innerHTML = filtered.map(p => `
+      <div class="product-chip ${state.selectedProduct === p ? 'selected' : ''}"
+           data-val="${p}" onclick="selectProduct(this)">${p}</div>
+    `).join('');
+  }
+
+  function selectProduct(el) {
+    state.selectedProduct = el.dataset.val;
+    document.getElementById('product-search').value = el.dataset.val;
+    filterProducts();
+  }
+
+  function selectUnit(el) {
+    document.querySelectorAll('.unit-chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    state.selectedUnit = el.dataset.val;
+  }
+
+  function addItem() {
+    const name = state.selectedProduct || document.getElementById('product-search').value.trim();
+    const qty = parseInt(document.getElementById('item-qty').value) || 1;
+    const unit = state.selectedUnit;
+    if (!name) { showToast('กรุณาเลือกหรือพิมพ์ชื่อสินค้า', true); return; }
+    state.itemList.push({ name, qty, unit });
+    state.selectedProduct = null;
+    document.getElementById('product-search').value = '';
+    document.getElementById('item-qty').value = '1';
+    filterProducts();
+    renderItemList();
+  }
+
+  function removeItem(index) {
+    state.itemList.splice(index, 1);
+    renderItemList();
+  }
+
+  function renderItemList() {
+    const el = document.getElementById('item-list');
+    if (!state.itemList.length) {
+      el.innerHTML = '<div class="item-empty">ยังไม่มีรายการสินค้า</div>';
+      return;
+    }
+    el.innerHTML = state.itemList.map((item, i) => `
+      <div class="item-row">
+        <span>${item.name} ${item.qty} ${item.unit}</span>
+        <button onclick="removeItem(${i})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function showDuplicateWarning(tracking, existing) {
+    const modal = document.getElementById('dup-modal');
+    document.getElementById('dup-tracking').textContent = tracking;
+    document.getElementById('dup-time').textContent = existing.time;
+    document.getElementById('dup-platform').textContent = existing.platform;
+    document.getElementById('dup-items').textContent = existing.items;
+    modal.classList.add('show');
+  }
+
+  function closeDupModal() {
+    document.getElementById('dup-modal').classList.remove('show');
   }
 
   function closeScanner() {
