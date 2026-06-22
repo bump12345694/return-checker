@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>เช็คพัสดุตีกลับ</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js">
+  // ===== Scanner =====
+  let scanner = null;
+  let scanTarget = null;
+
+  function openScanner(targetId) {
+    scanTarget = targetId;
+    const label = targetId === 'tracking' ? 'สแกนเลขพัสดุ' : 'สแกนเลขออเดอร์';
+    document.getElementById('scanner-label').textContent = label;
+    document.getElementById('scanner-modal').classList.add('show');
+
+    scanner = new Html5Qrcode('scanner-container');
+    scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 280, height: 180 } },
+      (decodedText) => {
+        document.getElementById(scanTarget).value = decodedText;
+        closeScanner();
+        showToast('สแกนสำเร็จ');
+      },
+      () => {}
+    ).catch(() => {
+      showToast('ไม่สามารถเปิดกล้องได้', true);
+      closeScanner();
+    });
+  }
+
+  function closeScanner() {
+    document.getElementById('scanner-modal').classList.remove('show');
+    if (scanner) {
+      scanner.stop().catch(() => {});
+      scanner = null;
+    }
+  }
+
+</script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F7F6F3; --surface: #FFFFFF; --border: #E2DDD8;
+    --text: #1A1A18; --text-muted: #7A776F;
+    --accent: #1D4ED8; --accent-light: #EEF2FF;
+    --danger: #DC2626; --danger-light: #FEF2F2;
+    --success: #16A34A; --success-light: #F0FDF4;
+    --warn: #D97706; --warn-light: #FFFBEB;
+    --radius: 12px; --radius-sm: 8px;
+  }
+  body { font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 40px; }
+  .header { background: var(--text); color: #fff; padding: 20px 16px 16px; position: sticky; top: 0; z-index: 100; }
+  .header h1 { font-size: 18px; font-weight: 700; }
+  .header p { font-size: 12px; color: #A8A49D; margin-top: 2px; }
+  .tab-row { display: flex; gap: 8px; margin-top: 14px; }
+  .tab { flex: 1; text-align: center; padding: 8px 0; font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer; color: #A8A49D; background: transparent; border: none; font-family: inherit; }
+  .tab.active { background: var(--accent); color: #fff; }
+  .view { display: none; padding: 16px; }
+  .view.active { display: block; }
+  .card { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); }
+  .card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 12px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  input[type="text"], textarea { width: 100%; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px; font-size: 15px; font-family: inherit; color: var(--text); background: var(--bg); outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+  input[type="text"]:focus, textarea:focus { border-color: var(--accent); background: #fff; }
+  textarea { resize: none; min-height: 70px; }
+  .field { margin-bottom: 14px; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { padding: 8px 14px; border-radius: 100px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: var(--bg); color: var(--text-muted); transition: all 0.12s; -webkit-tap-highlight-color: transparent; user-select: none; }
+  .chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip.cond-ok.selected { background: var(--success); border-color: var(--success); }
+  .chip.cond-damaged.selected { background: var(--danger); border-color: var(--danger); }
+  .chip.cond-missing.selected { background: var(--warn); border-color: var(--warn); }
+  .photo-area { border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; cursor: pointer; background: var(--bg); }
+  .photo-area p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  .photo-area .icon { font-size: 28px; }
+  input[type="file"] { display: none; }
+  .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .photo-thumb { aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; position: relative; background: var(--border); }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-thumb .remove-btn { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; background: rgba(0,0,0,0.6); color: #fff; border-radius: 50%; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; }
+  .btn-save { width: 100%; padding: 16px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 700; font-family: inherit; cursor: pointer; transition: opacity 0.15s; }
+  .btn-save:active { opacity: 0.85; }
+  .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+  .sending-bar { background: var(--accent-light); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 12px; font-size: 13px; color: var(--accent); font-weight: 600; display: none; text-align: center; }
+  .sending-bar.show { display: block; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--text); color: #fff; padding: 12px 24px; border-radius: 100px; font-size: 14px; font-weight: 600; z-index: 999; transition: transform 0.3s cubic-bezier(.34,1.56,.64,1); white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--danger); }
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .stat-box { background: var(--surface); border-radius: var(--radius-sm); padding: 12px 8px; text-align: center; border: 1px solid var(--border); }
+  .stat-num { font-size: 22px; font-weight: 800; }
+  .stat-label { font-size: 10px; color: var(--text-muted); margin-top: 2px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-ok .stat-num { color: var(--success); }
+  .stat-damaged .stat-num { color: var(--danger); }
+  .stat-missing .stat-num { color: var(--warn); }
+  .summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .summary-title { font-size: 15px; font-weight: 700; }
+  .summary-count { font-size: 12px; color: var(--text-muted); background: var(--border); padding: 4px 10px; border-radius: 100px; }
+  .record-card { background: var(--surface); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; border: 1px solid var(--border); border-left: 4px solid var(--border); }
+  .record-card.ok { border-left-color: var(--success); }
+  .record-card.damaged { border-left-color: var(--danger); }
+  .record-card.missing { border-left-color: var(--warn); }
+  .record-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .record-tracking { font-size: 13px; font-weight: 700; font-family: 'Courier New', monospace; letter-spacing: 0.5px; }
+  .record-time { font-size: 11px; color: var(--text-muted); }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .tag { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 100px; background: var(--accent-light); color: var(--accent); }
+  .tag.cond-ok { background: var(--success-light); color: var(--success); }
+  .tag.cond-damaged { background: var(--danger-light); color: var(--danger); }
+  .tag.cond-missing { background: var(--warn-light); color: var(--warn); }
+  .record-items { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .record-note { font-size: 12px; color: var(--text-muted); margin-top: 6px; font-style: italic; }
+  .sync-badge { font-size: 10px; padding: 2px 7px; border-radius: 100px; font-weight: 700; }
+  .sync-badge.synced { background: var(--success-light); color: var(--success); }
+  .sync-badge.pending { background: var(--warn-light); color: var(--warn); }
+  .thumb-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .thumb-row img { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; }
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+  .btn-clear { width: 100%; padding: 12px; background: transparent; color: var(--danger); border: 1.5px solid var(--danger); border-radius: var(--radius); font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; margin-top: 8px; }
+  .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; }
+  .lightbox.show { display: flex; }
+  .lightbox img { max-width: 95vw; max-height: 90vh; border-radius: 8px; }
+  .lightbox-close { position: absolute; top: 16px; right: 16px; color: #fff; font-size: 28px; cursor: pointer; background: none; border: none; line-height: 1; }
+  .input-with-scan { display: flex; gap: 8px; align-items: center; }
+  .input-with-scan input { flex: 1; }
+  .btn-scan { flex-shrink: 0; width: 46px; height: 46px; background: var(--accent); border: none; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; -webkit-tap-highlight-color: transparent; }
+  .scanner-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1100; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+  .scanner-modal.show { display: flex; }
+  .scanner-modal h2 { color: #fff; font-size: 16px; margin-bottom: 16px; }
+  #scanner-container { width: 100%; max-width: 340px; border-radius: var(--radius); overflow: hidden; }
+  .scanner-modal p { color: #A8A49D; font-size: 12px; margin-top: 12px; text-align: center; }
+  .btn-scan-close { margin-top: 20px; padding: 12px 32px; background: var(--danger); color: #fff; border: none; border-radius: 100px; font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>ตรวจพัสดุตีกลับ</h1>
+    <p>Vita Biotech — รับของ &amp; บันทึก</p>
+  </div>
+  <div class="tab-row">
+    <button class="tab active" onclick="switchTab('form', this)">บันทึกรับของ</button>
+    <button class="tab" onclick="switchTab('summary', this)">รายการทั้งหมด</button>
+  </div>
+</div>
+
+<!-- FORM VIEW -->
+<div class="view active" id="view-form">
+
+  <div class="sending-bar" id="sending-bar">กำลังส่งข้อมูลไป Google Sheets...</div>
+
+  <div class="card">
+    <div class="card-title">ข้อมูลพัสดุ</div>
+    <div class="field">
+      <label>เลขพัสดุ / Tracking</label>
+      <div class="input-with-scan">
+        <input type="text" id="tracking" placeholder="TH123456789" autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="btn-scan" onclick="openScanner('tracking')" title="สแกน">&#x1F4F7;</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>เลขออเดอร์ / Order ID <span style="font-weight:400;color:var(--text-muted)">(ถ้ามี)</span></label>
+      <div class="input-with-scan">
+        <input type="text" id="orderid" placeholder="เช่น 240622XXXXXX" autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="btn-scan" onclick="openScanner('orderid')" title="สแกน">&#x1F4F7;</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>แพลตฟอร์ม</label>
+      <div class="chip-group" id="chips-platform">
+        <div class="chip" data-val="Shopee" onclick="selectChip(this,'platform')">Shopee</div>
+        <div class="chip" data-val="TikTok" onclick="selectChip(this,'platform')">TikTok</div>
+        <div class="chip" data-val="Lazada" onclick="selectChip(this,'platform')">Lazada</div>
+        <div class="chip" data-val="Line" onclick="selectChip(this,'platform')">Line</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>ขนส่ง</label>
+      <div class="chip-group" id="chips-carrier">
+        <div class="chip" data-val="Flash Express" onclick="selectChip(this,'carrier')">Flash</div>
+        <div class="chip" data-val="J&T Express" onclick="selectChip(this,'carrier')">J&T</div>
+        <div class="chip" data-val="Kerry" onclick="selectChip(this,'carrier')">Kerry</div>
+        <div class="chip" data-val="Thailand Post" onclick="selectChip(this,'carrier')">ไปรษณีย์</div>
+        <div class="chip" data-val="SCG" onclick="selectChip(this,'carrier')">SCG</div>
+        <div class="chip" data-val="SPX" onclick="selectChip(this,'carrier')">SPX</div>
+        <div class="chip" data-val="LEX" onclick="selectChip(this,'carrier')">LEX</div>
+        <div class="chip" data-val="อื่นๆ" onclick="selectChip(this,'carrier')">อื่นๆ</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">สินค้าที่ได้รับจริง</div>
+    <div class="field">
+      <label>รายการสินค้า</label>
+      <textarea id="items" placeholder="เช่น คอลลาเจน 2 ซอง, เวย์โปรตีน 1 กระปุก"></textarea>
+    </div>
+    <div class="field">
+      <label>สภาพของ</label>
+      <div class="chip-group" id="chips-condition">
+        <div class="chip cond-ok" data-val="ปกติ" onclick="selectChip(this,'condition')">ปกติ</div>
+        <div class="chip cond-damaged" data-val="เสียหาย" onclick="selectChip(this,'condition')">เสียหาย</div>
+        <div class="chip cond-missing" data-val="ขาดหาย" onclick="selectChip(this,'condition')">ขาดหาย</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>หมายเหตุ (ถ้ามี)</label>
+      <input type="text" id="note" placeholder="เช่น กล่องบุบ, ของไม่ตรง">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">รูปถ่าย</div>
+    <div class="photo-area" onclick="document.getElementById('photo-input').click()">
+      <div class="icon">📷</div>
+      <p>แตะเพื่อถ่ายรูปหรือเลือกจากคลัง</p>
+    </div>
+    <input type="file" id="photo-input" accept="image/*" multiple capture="environment" onchange="addPhotos(event)">
+    <div class="photo-grid" id="photo-preview"></div>
+  </div>
+
+  <button class="btn-save" id="btn-save" onclick="saveRecord()">บันทึกรับของ</button>
+</div>
+
+<!-- SUMMARY VIEW -->
+<div class="view" id="view-summary">
+  <div class="stats-row">
+    <div class="stat-box stat-ok"><div class="stat-num" id="stat-ok">0</div><div class="stat-label">ปกติ</div></div>
+    <div class="stat-box stat-damaged"><div class="stat-num" id="stat-damaged">0</div><div class="stat-label">เสียหาย</div></div>
+    <div class="stat-box stat-missing"><div class="stat-num" id="stat-missing">0</div><div class="stat-label">ขาดหาย</div></div>
+  </div>
+  <div class="summary-header">
+    <span class="summary-title">รายการวันนี้</span>
+    <span class="summary-count" id="record-count">0 รายการ</span>
+  </div>
+  <div id="record-list"></div>
+  <button class="btn-clear" onclick="clearAll()">ล้างรายการทั้งหมด</button>
+</div>
+
+
+<!-- Scanner Modal -->
+<div class="scanner-modal" id="scanner-modal">
+  <h2 id="scanner-label">สแกนบาร์โค้ด / QR Code</h2>
+  <div id="scanner-container"></div>
+  <p>จ่อกล้องไปที่บาร์โค้ดหรือ QR บนกล่องพัสดุ</p>
+  <button class="btn-scan-close" onclick="closeScanner()">ยกเลิก</button>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxkL6hdprK7HoGrWRxgaRW3YyByuLMT9EnfcLlhu4hX9rsIt9sqUYvs3DsR_dDatb1r4g/exec';
+
+  const state = { platform: null, carrier: null, condition: null, photos: [] };
+
+  function switchTab(tab, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + tab).classList.add('active');
+    el.classList.add('active');
+    if (tab === 'summary') renderSummary();
+  }
+
+  function selectChip(el, group) {
+    el.closest('.chip-group').querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    state[group] = el.dataset.val;
+  }
+
+  function addPhotos(event) {
+    Array.from(event.target.files).forEach(file => {
+      // ย่อขนาดรูปก่อน upload เพื่อไม่ให้ช้า
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        resizeImage(e.target.result, 800, (resized) => {
+          state.photos.push(resized);
+          renderPhotoPreview();
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+    event.target.value = '';
+  }
+
+  function resizeImage(base64, maxWidth, callback) {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * ratio;
+      canvas.height = img.height * ratio;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      callback(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.src = base64;
+  }
+
+  function renderPhotoPreview() {
+    document.getElementById('photo-preview').innerHTML = state.photos.map((src, i) => `
+      <div class="photo-thumb">
+        <img src="${src}" onclick="openLightbox('${src}')">
+        <button class="remove-btn" onclick="removePhoto(${i})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function removePhoto(index) {
+    state.photos.splice(index, 1);
+    renderPhotoPreview();
+  }
+
+  function openLightbox(src) {
+    document.getElementById('lightbox-img').src = src;
+    document.getElementById('lightbox').classList.add('show');
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('show');
+  }
+
+  async function saveRecord() {
+    const tracking = document.getElementById('tracking').value.trim();
+    const items = document.getElementById('items').value.trim();
+    if (!tracking) { showToast('กรุณากรอกเลขพัสดุ', true); return; }
+    if (!state.platform) { showToast('กรุณาเลือกแพลตฟอร์ม', true); return; }
+    if (!state.carrier) { showToast('กรุณาเลือกขนส่ง', true); return; }
+    if (!items) { showToast('กรุณากรอกรายการสินค้า', true); return; }
+    if (!state.condition) { showToast('กรุณาเลือกสภาพของ', true); return; }
+
+    const record = {
+      id: Date.now(),
+      tracking,
+      orderid: document.getElementById('orderid').value.trim(),
+      platform: state.platform,
+      carrier: state.carrier,
+      items,
+      condition: state.condition,
+      note: document.getElementById('note').value.trim(),
+      photos: [...state.photos],
+      time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+      synced: false
+    };
+
+    // บันทึกลง localStorage ก่อน (กันข้อมูลหายถ้าเน็ตหลุด)
+    const records = getRecords();
+    records.unshift(record);
+    localStorage.setItem('returnRecords', JSON.stringify(records));
+
+    // ส่งไป Google Sheets
+    const btn = document.getElementById('btn-save');
+    const bar = document.getElementById('sending-bar');
+    btn.disabled = true;
+    bar.classList.add('show');
+
+    try {
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record)
+      });
+
+      // mark synced
+      const updated = getRecords();
+      const found = updated.find(r => r.id === record.id);
+      if (found) { found.synced = true; localStorage.setItem('returnRecords', JSON.stringify(updated)); }
+
+      showToast('บันทึกแล้ว ข้อมูลขึ้น Google Sheets');
+    } catch (err) {
+      showToast('บันทึกในเครื่องแล้ว (ส่ง Sheets ไม่สำเร็จ)', true);
+    }
+
+    btn.disabled = false;
+    bar.classList.remove('show');
+    resetForm();
+  }
+
+  function resetForm() {
+    document.getElementById('tracking').value = '';
+    document.getElementById('orderid').value = '';
+    document.getElementById('items').value = '';
+    document.getElementById('note').value = '';
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+    state.platform = null; state.carrier = null; state.condition = null; state.photos = [];
+    renderPhotoPreview();
+  }
+
+  function getRecords() {
+    try { return JSON.parse(localStorage.getItem('returnRecords')) || []; } catch { return []; }
+  }
+
+  function renderSummary() {
+    const records = getRecords();
+    document.getElementById('stat-ok').textContent = records.filter(r => r.condition === 'ปกติ').length;
+    document.getElementById('stat-damaged').textContent = records.filter(r => r.condition === 'เสียหาย').length;
+    document.getElementById('stat-missing').textContent = records.filter(r => r.condition === 'ขาดหาย').length;
+    document.getElementById('record-count').textContent = records.length + ' รายการ';
+
+    const list = document.getElementById('record-list');
+    if (!records.length) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">📦</div><p>ยังไม่มีรายการบันทึกวันนี้</p></div>`;
+      return;
+    }
+    const condClass = { 'ปกติ': 'ok', 'เสียหาย': 'damaged', 'ขาดหาย': 'missing' };
+    list.innerHTML = records.map(r => `
+      <div class="record-card ${condClass[r.condition] || ''}">
+        <div class="record-top">
+          <span class="record-tracking">${r.tracking}</span>
+          <span class="record-time">${r.time} <span class="sync-badge ${r.synced ? 'synced' : 'pending'}">${r.synced ? 'Synced' : 'Pending'}</span></span>
+        </div>
+        <div class="tag-row">
+          <span class="tag">${r.platform}</span>
+          <span class="tag">${r.carrier}</span>
+          <span class="tag cond-${condClass[r.condition]}">${r.condition}</span>
+        </div>
+        <div class="record-items">${r.items}</div>
+        ${r.note ? `<div class="record-note">${r.note}</div>` : ''}
+        ${r.photos && r.photos.length ? `<div class="thumb-row">${r.photos.map(src => `<img src="${src}" onclick="openLightbox('${src}')">`).join('')}</div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  function clearAll() {
+    if (confirm('ล้างรายการทั้งหมดใช่ไหม?')) {
+      localStorage.removeItem('returnRecords');
+      renderSummary();
+      showToast('ล้างรายการแล้ว');
+    }
+  }
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast' + (isError ? ' error' : '');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // ===== Scanner =====
+  let scanner = null;
+  let scanTarget = null;
+
+  function openScanner(targetId) {
+    scanTarget = targetId;
+    const label = targetId === 'tracking' ? 'สแกนเลขพัสดุ' : 'สแกนเลขออเดอร์';
+    document.getElementById('scanner-label').textContent = label;
+    document.getElementById('scanner-modal').classList.add('show');
+
+    scanner = new Html5Qrcode('scanner-container');
+    scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 280, height: 180 } },
+      (decodedText) => {
+        document.getElementById(scanTarget).value = decodedText;
+        closeScanner();
+        showToast('สแกนสำเร็จ');
+      },
+      () => {}
+    ).catch(() => {
+      showToast('ไม่สามารถเปิดกล้องได้', true);
+      closeScanner();
+    });
+  }
+
+  function closeScanner() {
+    document.getElementById('scanner-modal').classList.remove('show');
+    if (scanner) {
+      scanner.stop().catch(() => {});
+      scanner = null;
+    }
+  }
+
+</script>
+</body>
+</html>
