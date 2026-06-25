@@ -330,7 +330,7 @@
   </div>
 
   <div class="card">
-    <div class="card-title">รูปถ่าย</div>
+    <div class="card-title">รูปถ่าย <span style="color:var(--danger);font-size:10px;font-weight:700">* จำเป็น</span></div>
     <div class="photo-area" onclick="document.getElementById('photo-input').click()">
       <div class="icon">📷</div>
       <p>แตะเพื่อถ่ายรูปหรือเลือกจากคลัง</p>
@@ -391,7 +391,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxkL6hdprK7HoGrWRxgaRW3YyByuLMT9EnfcLlhu4hX9rsIt9sqUYvs3DsR_dDatb1r4g/exec';
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwf8hctcuRaf7twb9-bbqEZgtLFHH5g99rP5AGn6ojpXorunt8SF7P471GmHHt3MOqhmA/exec';
 
   const PRODUCTS = [
     'magnesium 7 in 1','Omega','A19','DOUBLE','H-Cap','H-Tea',
@@ -477,6 +477,7 @@
     if (!state.carrier) { showToast('กรุณาเลือกขนส่ง', true); return; }
     if (state.itemList.length === 0) { showToast('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ', true); return; }
     if (!state.condition) { showToast('กรุณาเลือกสภาพของ', true); return; }
+    if (state.photos.length === 0) { showToast('กรุณาถ่ายรูปพัสดุก่อนบันทึก', true); return; }
 
     // เช็คเลขพัสดุซ้ำ
     const existing = getRecords().find(r => r.tracking === tracking);
@@ -513,6 +514,20 @@
     bar.classList.add('show');
 
     try {
+      // เช็คซ้ำกับ Sheets จริงก่อน (GET request อ่าน response ได้)
+      const checkResp = await fetch(SCRIPT_URL + '?action=checkDup&tracking=' + encodeURIComponent(record.tracking));
+      const checkData = await checkResp.json();
+      if (checkData.duplicate) {
+        // ลบออกจาก localStorage ที่เพิ่งบันทึกไป
+        const updated = getRecords().filter(r => r.id !== record.id);
+        localStorage.setItem('returnRecords', JSON.stringify(updated));
+        btn.disabled = false;
+        bar.classList.remove('show');
+        showDuplicateWarning(record.tracking, { time: checkData.time, platform: checkData.platform, items: checkData.items });
+        return;
+      }
+
+      // ส่งข้อมูลจริง
       await fetch(SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
